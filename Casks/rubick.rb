@@ -21,7 +21,10 @@ cask "rubick" do
   # race it: `brew upgrade` still works, and `auto_updates` keeps `greedy`
   # runs from reinstalling what the app already replaced.
   auto_updates true
-  depends_on macos: ">= :high_sierra"
+
+  # No `depends_on macos:`. The app's floor is 10.13, which is below the
+  # oldest release Homebrew itself runs on, so the constraint could only ever
+  # be vacuous — and the symbol for it has been removed.
 
   app "Rubick.app"
 
