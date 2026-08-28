@@ -1,0 +1,64 @@
+name: Follow the latest release
+
+# The cask updates itself rather than being pushed from the app's release
+# workflow: that would need a token with write access to this repository,
+# stored as a secret over there. Here the built-in GITHUB_TOKEN already has
+# it, and nobody has to hold a PAT.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Read the latest release
+        id: latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # The digests come from the API, so the runner never downloads a
+          # 12 MB disk image just to hash it.
+          json=$(gh api repos/Dudude-bit/rubick/releases/latest)
+          version=$(jq -r '.tag_name | ltrimstr("v")' <<<"$json")
+          for arch in aarch64 x64; do
+            digest=$(jq -r --arg n "Rubick_${version}_${arch}.dmg" \
+              '.assets[] | select(.name == $n) | .digest' <<<"$json")
+            case "$digest" in
+              sha256:*) ;;
+              *) echo "::error::no sha256 for Rubick_${version}_${arch}.dmg"; exit 1 ;;
+            esac
+            echo "${arch}=${digest#sha256:}" >> "$GITHUB_OUTPUT"
+          done
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Write the cask
+        env:
+          VERSION: ${{ steps.latest.outputs.version }}
+          ARM: ${{ steps.latest.outputs.aarch64 }}
+          INTEL: ${{ steps.latest.outputs.x64 }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, pathlib, re
+          p = pathlib.Path("Casks/rubick.rb")
+          s = p.read_text()
+          s = re.sub(r'^  version "[^"]*"$', f'  version "{os.environ["VERSION"]}"', s, flags=re.M)
+          s = re.sub(r'^  sha256 arm:   "[0-9a-f]*",$',
+                     f'  sha256 arm:   "{os.environ["ARM"]}",', s, flags=re.M)
+          s = re.sub(r'^         intel: "[0-9a-f]*"$',
+                     f'         intel: "{os.environ["INTEL"]}"', s, flags=re.M)
+          p.write_text(s)
+          PY
+          git diff --quiet && { echo "already current"; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -aqm "Rubick ${VERSION}"
+          git push
