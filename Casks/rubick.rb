@@ -1,9 +1,9 @@
 cask "rubick" do
   arch arm: "aarch64", intel: "x64"
 
-  version "4.9.1"
-  sha256 arm:   "8402d295d7f6a4cf875285764b748834aa939659579459f57cc29c26e6c592a9",
-         intel: "84a1edbeb1ab47cabc87394b95b599595775c487c485acb8f4fe66bd38ba93d4"
+  version "4.9.2"
+  sha256 arm:   "d9d89c839577ec4977e8ac65d10ef33341a11b02c24fadf0c743832afc78dc60",
+         intel: "76b66bdcc00f40d9248e60a7d21e366facdee3a3799bc351c1649133cdd09b69"
 
   url "https://github.com/Dudude-bit/rubick/releases/download/v#{version}/Rubick_#{version}_#{arch}.dmg",
       verified: "github.com/Dudude-bit/rubick/"
